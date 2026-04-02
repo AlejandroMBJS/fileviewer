@@ -29,7 +29,11 @@ expected_output="$output_dir/$input_stem.dxf"
 cp "$input_path" "$input_dir/$input_name"
 
 if command -v ODAFileConverter >/dev/null 2>&1; then
-  ODAFileConverter "$input_dir" "$output_dir" ACAD2018 DXF 0 1 "$input_name"
+  if command -v xvfb-run >/dev/null 2>&1; then
+    xvfb-run -a ODAFileConverter "$input_dir" "$output_dir" ACAD2018 DXF 0 1 "$input_name"
+  else
+    ODAFileConverter "$input_dir" "$output_dir" ACAD2018 DXF 0 1 "$input_name"
+  fi
 elif command -v dwg2dxf >/dev/null 2>&1; then
   dwg2dxf "$input_path" "$output_path"
   exit 0

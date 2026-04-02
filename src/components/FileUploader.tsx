@@ -92,11 +92,11 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
       <div
         {...getRootProps()}
         className={cn(
-          "relative group cursor-pointer transition-all duration-300",
-          "border-2 border-dashed rounded-2xl p-12 text-center",
+          "iris-glass-card relative group cursor-pointer rounded-[1.75rem] p-12 text-center transition-all duration-300",
+          "border border-dashed",
           isDragActive 
-            ? "border-blue-500 bg-blue-500/5" 
-            : "border-neutral-700 hover:border-neutral-500 bg-neutral-800/30",
+            ? "border-cyan-300/45 bg-cyan-300/8 shadow-[0_24px_60px_rgba(34,211,238,0.08)]" 
+            : "border-white/12 hover:border-cyan-200/30 bg-white/5",
           loading && "opacity-50 pointer-events-none"
         )}
       >
@@ -105,7 +105,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
         <div className="flex flex-col items-center gap-4">
           <div className={cn(
             "p-4 rounded-full transition-transform duration-300 group-hover:scale-110",
-            isDragActive ? "bg-blue-500/20 text-blue-400" : "bg-neutral-800 text-neutral-400"
+            isDragActive ? "bg-cyan-300/18 text-cyan-200" : "bg-white/8 text-neutral-300"
           )}>
             {loading ? <Loader2 size={32} className="animate-spin" /> : <Upload size={32} />}
           </div>
@@ -114,16 +114,16 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
             <h3 className="text-lg font-semibold text-neutral-200">
               {loading ? (isConverting ? "Converting DWG to DXF..." : "Processing file...") : (isDragActive ? "Drop the file here" : "Upload your CAD file")}
             </h3>
-            <p className="text-sm text-neutral-500 mt-1">
+            <p className="mt-1 text-sm text-neutral-400">
               Supports DXF, DWG, STL, STP, STEP, and 3MF
             </p>
           </div>
 
           <div className="flex flex-wrap justify-center gap-2">
             {SUPPORTED_FILE_LABELS.map((ext) => (
-              <div key={ext} className="flex items-center gap-1.5 px-2.5 py-1 bg-neutral-800 rounded-full border border-neutral-700">
+              <div key={ext} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/6 px-2.5 py-1">
                 <FileText size={12} className="text-neutral-500" />
-                <span className="text-[10px] font-bold text-neutral-400">{ext}</span>
+                <span className="text-[10px] font-bold text-neutral-300">{ext}</span>
               </div>
             ))}
           </div>
@@ -139,8 +139,8 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
         )}
       </div>
 
-      <div className="mt-6 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
-        <p className="text-xs text-blue-400 leading-relaxed">
+      <div className="iris-glass-card mt-6 rounded-2xl border border-cyan-300/10 bg-cyan-300/6 p-4">
+        <p className="text-xs leading-relaxed text-cyan-100/78">
           <span className="font-bold">Auto-Conversion:</span> DWG files are converted to DXF on the backend before rendering. STL and STP/STEP files open directly in the 3D viewer.
         </p>
       </div>

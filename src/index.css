@@ -1,1 +1,69 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.16), transparent 30%),
+    radial-gradient(circle at 85% 20%, rgba(14, 165, 233, 0.14), transparent 24%),
+    linear-gradient(180deg, #071018 0%, #05080d 55%, #04070b 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.iris-shell {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 20%),
+    linear-gradient(180deg, rgba(5, 10, 16, 0.2), rgba(5, 8, 13, 0.75));
+}
+
+.iris-orb {
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.42;
+}
+
+.iris-orb-a {
+  top: 6rem;
+  left: -6rem;
+  height: 18rem;
+  width: 18rem;
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.iris-orb-b {
+  top: 10rem;
+  right: -5rem;
+  height: 16rem;
+  width: 16rem;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.iris-orb-c {
+  bottom: 5rem;
+  left: 50%;
+  height: 14rem;
+  width: 14rem;
+  transform: translateX(-50%);
+  background: rgba(125, 211, 252, 0.08);
+}
+
+.iris-glass-panel,
+.iris-glass-card {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 20px 60px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(24px);
+}

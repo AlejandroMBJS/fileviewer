@@ -12,6 +12,8 @@ RUN apt-get update \
     ca-certificates \
     curl \
     gdebi-core \
+    xauth \
+    xvfb \
     libasound2 \
     libegl1 \
     libfontconfig1 \
@@ -44,7 +46,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --include=dev
 
 COPY . .
 

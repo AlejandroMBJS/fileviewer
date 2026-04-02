@@ -5,6 +5,7 @@ const appUrl = process.env.APP_URL || 'http://127.0.0.1:3000';
 const chromePath = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 const filePath = process.env.TEST_FILE || '/home/iamx/Downloads/YHs7f-women-body-3d-wall-art.dxf';
 const screenshotPath = process.env.SCREENSHOT_PATH || '/tmp/fileviewer-dxf-e2e.png';
+const timeoutMs = Number(process.env.TIMEOUT_MS || 15000);
 const uploadedFileName = path.basename(filePath);
 const expectedFileName = uploadedFileName.toLowerCase().endsWith('.dwg')
   ? uploadedFileName.replace(/\.[^.]+$/i, '.dxf')
@@ -31,19 +32,19 @@ page.on('pageerror', (error) => {
 });
 
 try {
-  await page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+  await page.goto(appUrl, { waitUntil: 'networkidle2', timeout: Math.max(timeoutMs * 2, 30000) });
 
   const input = await page.waitForSelector('input[type="file"]', { timeout: 10000 });
   await input.uploadFile(filePath);
 
   await page.waitForFunction(
     () => document.body.innerText.includes('Loaded:'),
-    { timeout: 15000 },
+    { timeout: timeoutMs },
   );
 
   await page.waitForFunction(
     () => !document.body.innerText.includes('Processing file...'),
-    { timeout: 15000 },
+    { timeout: timeoutMs },
   );
 
   const loadedText = await page.$eval('body', (body) => body.innerText);

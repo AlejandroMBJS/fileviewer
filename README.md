@@ -52,3 +52,44 @@ Build:
 Run:
 
 `docker run --rm -p 3000:3000 fileviewer`
+
+## Runtime Notes
+
+- No database is used.
+- No application persistence is configured.
+- Uploaded files are processed in memory or temporary directories and then discarded.
+- The only persistent state you may add is container restart policy or an optional `.env` file for runtime configuration.
+
+## Linux Scripts
+
+These scripts work from the repository root regardless of where the project is mounted on Linux:
+
+- `./deploy.sh`
+  Builds the container image and installs `ODA File Converter` into the image.
+- `./start.sh`
+  Starts the app on port `3000` with `--restart unless-stopped`.
+- `./stop.sh`
+  Stops and removes the running container.
+
+Supported runtimes:
+
+- `docker`
+- `podman`
+
+Optional environment variables:
+
+- `APP_NAME`
+- `IMAGE_NAME`
+- `CONTAINER_NAME`
+- `HOST_PORT`
+- `CONTAINER_PORT`
+- `ODA_DEB_URL`
+- `CONTAINER_RUNTIME`
+
+Examples:
+
+`./deploy.sh`
+
+`HOST_PORT=8080 ./start.sh`
+
+`./stop.sh`
