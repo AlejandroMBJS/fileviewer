@@ -3,12 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { convertDwgToDxf } from '../lib/model-loaders';
-
-interface FileData {
-  data: string | ArrayBuffer;
-  type: 'dxf' | 'stl' | '3mf' | 'step';
-  name: string;
-}
+import { FileData, getFileTypeFromName, SUPPORTED_FILE_LABELS } from '../lib/cad-types';
 
 interface FileUploaderProps {
   onFileLoaded: (fileData: FileData) => void;
@@ -24,16 +19,21 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
     if (!file) return;
     setError(null);
 
-    const extension = file.name.split('.').pop()?.toLowerCase();
+    const fileType = getFileTypeFromName(file.name);
 
-    if (extension === 'dwg') {
+    if (!fileType) {
+      setError('Unsupported file type. Use DXF, DWG, STL, STP, STEP, or 3MF.');
+      return;
+    }
+
+    if (fileType === 'dwg') {
       setIsConverting(true);
       try {
         const dxfText = await convertDwgToDxf(file);
         onFileLoaded({
           data: dxfText,
           type: 'dxf',
-          name: file.name.replace('.dwg', '.dxf')
+          name: file.name.replace(/\.[^.]+$/i, '.dxf')
         });
       } catch (err: any) {
         setError(err.message || 'Failed to convert DWG file.');
@@ -48,7 +48,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
       const result = e.target?.result;
       if (!result) return;
 
-      if (extension === 'dxf' && typeof result === 'string') {
+      if (fileType === 'dxf' && typeof result === 'string') {
         // Simple check for binary DXF (starts with "AutoCAD Binary DXF")
         if (result.startsWith('AutoCAD Binary DXF')) {
           setError('This file appears to be a Binary DXF. Please use ASCII DXF format.');
@@ -56,19 +56,14 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
         }
       }
 
-      let type: 'dxf' | 'stl' | '3mf' | 'step' = 'dxf';
-      if (extension === 'stl') type = 'stl';
-      else if (extension === '3mf') type = '3mf';
-      else if (extension === 'step' || extension === 'stp') type = 'step';
-
       onFileLoaded({
         data: result,
-        type,
+        type: fileType,
         name: file.name
       });
     };
 
-    if (extension === 'dxf') {
+    if (fileType === 'dxf') {
       reader.readAsText(file);
     } else {
       reader.readAsArrayBuffer(file);
@@ -78,13 +73,14 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
   const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
     onDrop,
     accept: {
+      'application/octet-stream': ['.stl', '.stp', '.step', '.dwg'],
+      'model/3mf': ['.3mf'],
+      'text/plain': ['.dxf'],
       'application/dxf': ['.dxf'],
       'model/stl': ['.stl'],
-      'model/3mf': ['.3mf'],
       'application/step': ['.step', '.stp'],
       'image/vnd.dwg': ['.dwg'],
       'application/x-dwg': ['.dwg'],
-      'text/plain': ['.dxf'],
     },
     multiple: false,
   } as any);
@@ -116,15 +112,15 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
           
           <div>
             <h3 className="text-lg font-semibold text-neutral-200">
-              {loading ? (isConverting ? "Converting DWG to DXF..." : "Processing file...") : (isDragActive ? "Drop the file here" : "Upload your 3D model")}
+              {loading ? (isConverting ? "Converting DWG to DXF..." : "Processing file...") : (isDragActive ? "Drop the file here" : "Upload your CAD file")}
             </h3>
             <p className="text-sm text-neutral-500 mt-1">
-              Supports DXF, STL, 3MF, STEP, and DWG
+              Supports DXF, DWG, STL, STP, STEP, and 3MF
             </p>
           </div>
 
           <div className="flex flex-wrap justify-center gap-2">
-            {['DXF', 'STL', '3MF', 'STEP', 'DWG'].map(ext => (
+            {SUPPORTED_FILE_LABELS.map((ext) => (
               <div key={ext} className="flex items-center gap-1.5 px-2.5 py-1 bg-neutral-800 rounded-full border border-neutral-700">
                 <FileText size={12} className="text-neutral-500" />
                 <span className="text-[10px] font-bold text-neutral-400">{ext}</span>
@@ -145,7 +141,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onFileLoaded, isLoad
 
       <div className="mt-6 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
         <p className="text-xs text-blue-400 leading-relaxed">
-          <span className="font-bold">Auto-Conversion:</span> DWG files are automatically converted to DXF for viewing. 3D formats like STL and STEP are rendered with full perspective and lighting.
+          <span className="font-bold">Auto-Conversion:</span> DWG files are converted to DXF on the backend before rendering. STL and STP/STEP files open directly in the 3D viewer.
         </p>
       </div>
     </div>

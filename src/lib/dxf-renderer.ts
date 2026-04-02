@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import DxfParser from 'dxf-parser';
+import { NURBSCurve } from 'three/examples/jsm/curves/NURBSCurve.js';
 
 export function renderDxf(dxfData: string): THREE.Group {
   const parser = new DxfParser();
@@ -83,6 +84,10 @@ export function renderDxf(dxfData: string): THREE.Group {
       case 'POINT':
         // Points are hard to see as lines, maybe use a small cross or circle
         break;
+
+      case 'SPLINE':
+        geometry = createSplineGeometry(entity);
+        break;
     }
 
     if (geometry) {
@@ -94,4 +99,42 @@ export function renderDxf(dxfData: string): THREE.Group {
   });
 
   return group;
+}
+
+function createSplineGeometry(entity: any): THREE.BufferGeometry | null {
+  const controlPoints = Array.isArray(entity.controlPoints) ? entity.controlPoints : [];
+  if (controlPoints.length < 2) {
+    return null;
+  }
+
+  try {
+    const degree = typeof entity.degreeOfSplineCurve === 'number' ? entity.degreeOfSplineCurve : 3;
+    const knots = Array.isArray(entity.knotValues) ? entity.knotValues : [];
+
+    if (knots.length >= controlPoints.length + degree + 1) {
+      const nurbsPoints = controlPoints.map(
+        (point: any) => new THREE.Vector4(point.x, point.y, point.z || 0, 1)
+      );
+      const curve = new NURBSCurve(degree, knots, nurbsPoints);
+      const sampledPoints = curve.getPoints(getSplineSegments(controlPoints.length));
+      if (entity.closed && sampledPoints.length > 0) {
+        sampledPoints.push(sampledPoints[0].clone());
+      }
+      return new THREE.BufferGeometry().setFromPoints(sampledPoints);
+    }
+  } catch (error) {
+    console.warn('Falling back to control-point spline rendering.', error);
+  }
+
+  const fallbackPoints = controlPoints.map(
+    (point: any) => new THREE.Vector3(point.x, point.y, point.z || 0)
+  );
+  if (entity.closed && fallbackPoints.length > 0) {
+    fallbackPoints.push(fallbackPoints[0].clone());
+  }
+  return new THREE.BufferGeometry().setFromPoints(fallbackPoints);
+}
+
+function getSplineSegments(controlPointCount: number) {
+  return Math.max(24, controlPointCount * 8);
 }

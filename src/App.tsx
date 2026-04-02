@@ -3,12 +3,7 @@ import { Viewer } from './components/Viewer';
 import { FileUploader } from './components/FileUploader';
 import { Layers, Box, Info, Github, FileCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-interface FileData {
-  data: string | ArrayBuffer;
-  type: 'dxf' | 'stl' | '3mf' | 'step';
-  name: string;
-}
+import { FileData } from './lib/cad-types';
 
 export default function App() {
   const [fileData, setFileData] = useState<FileData | null>(null);
@@ -62,12 +57,12 @@ export default function App() {
             >
               <div className="mb-8">
                 <h2 className="text-4xl font-bold text-white mb-4 tracking-tight">
-                  Visualize your CAD designs <br />
+                  Visualize your CAD files <br />
                   <span className="text-neutral-500">directly in the browser.</span>
                 </h2>
                 <p className="text-neutral-400 max-w-lg mx-auto">
-                  Upload your DXF blueprints to explore them in a high-performance 3D environment. 
-                  No software installation required.
+                  Upload `DXF`, `DWG`, `STL`, and `STP/STEP` files to inspect 2D drawings and 3D models
+                  without installing desktop CAD software.
                 </p>
               </div>
 
@@ -76,18 +71,18 @@ export default function App() {
               <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-4xl">
                 <FeatureCard 
                   icon={<Layers className="text-blue-400" />}
-                  title="Layer Support"
-                  description="Automatically handles complex CAD layers and entity groupings."
+                  title="2D Drawings"
+                  description="Open DXF plans with automatic centering and drawing-safe camera framing."
                 />
                 <FeatureCard 
                   icon={<Box className="text-purple-400" />}
-                  title="3D Perspective"
-                  description="Switch between 2D top-down and 3D perspective views effortlessly."
+                  title="3D Models"
+                  description="Render STL and STEP geometry with perspective camera, grid, and lighting."
                 />
                 <FeatureCard 
                   icon={<FileCode className="text-emerald-400" />}
-                  title="Open Standard"
-                  description="Built on the DXF open standard for maximum compatibility."
+                  title="DWG Intake"
+                  description="When a converter is configured on the server, uploaded DWG files are converted to DXF automatically."
                 />
               </div>
             </motion.div>

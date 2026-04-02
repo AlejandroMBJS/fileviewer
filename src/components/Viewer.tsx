@@ -3,15 +3,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { renderDxf } from '../lib/dxf-renderer';
 import { loadSTL, load3MF, loadSTEP } from '../lib/model-loaders';
-import { Maximize2, Minimize2, RotateCcw, ZoomIn, ZoomOut, Box as BoxIcon } from 'lucide-react';
-import { motion } from 'motion/react';
+import { AlertCircle, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { FileData, ViewerFileType } from '../lib/cad-types';
 
 interface ViewerProps {
-  fileData: {
-    data: string | ArrayBuffer;
-    type: 'dxf' | 'stl' | '3mf' | 'step';
-    name: string;
-  } | null;
+  fileData: FileData | null;
 }
 
 export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
@@ -21,6 +17,9 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const groupRef = useRef<THREE.Group | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const fitTargetRef = useRef<{ center: THREE.Vector3; size: THREE.Vector3; type: ViewerFileType } | null>(null);
+  const [viewerError, setViewerError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -71,7 +70,7 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
 
     // Animation loop
     const animate = () => {
-      requestAnimationFrame(animate);
+      frameRef.current = requestAnimationFrame(animate);
       controls.update();
       renderer.render(scene, camera);
     };
@@ -90,6 +89,13 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+      }
+      if (groupRef.current) {
+        clearCurrentModel(scene, groupRef);
+      }
+      controls.dispose();
       renderer.dispose();
       if (containerRef.current) {
         containerRef.current.removeChild(renderer.domElement);
@@ -100,13 +106,11 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
   useEffect(() => {
     if (!fileData || !sceneRef.current || !cameraRef.current || !controlsRef.current) return;
 
-    // Clear previous group
-    if (groupRef.current) {
-      sceneRef.current.remove(groupRef.current);
-    }
-
     const loadModel = async () => {
-      console.log('Loading model:', fileData.name, 'type:', fileData.type);
+      setViewerError(null);
+      fitTargetRef.current = null;
+      clearCurrentModel(sceneRef.current, groupRef);
+
       try {
         let group: THREE.Group;
         
@@ -126,50 +130,25 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
             break;
         }
 
-        console.log('Model loaded successfully, children:', group.children.length);
+        if (group.children.length === 0) {
+          throw new Error('The file was parsed, but it does not contain renderable geometry.');
+        }
+
         sceneRef.current?.add(group);
         groupRef.current = group;
 
-        // Add a box helper for debugging
-        const helper = new THREE.BoxHelper(group, 0xffff00);
-        sceneRef.current?.add(helper);
-
-        // Center camera on geometry
         const box = new THREE.Box3().setFromObject(group);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        
-        console.log('Model dimensions:', size.x, size.y, size.z, 'maxDim:', maxDim);
+        fitTargetRef.current = { center, size, type: fileData.type };
 
-        if (maxDim === 0) {
-          console.warn('Model has zero dimensions');
-        }
-
-        // Update grid size based on model
-        const grid = sceneRef.current?.children.find(c => c instanceof THREE.GridHelper) as THREE.GridHelper;
-        if (grid) {
-          sceneRef.current?.remove(grid);
-        }
-        const newGrid = new THREE.GridHelper(Math.max(10, maxDim * 10), 20);
-        sceneRef.current?.add(newGrid);
-
-        // Adjust camera clipping planes based on model size
-        cameraRef.current!.near = Math.max(0.001, maxDim / 1000);
-        cameraRef.current!.far = Math.max(1000, maxDim * 100);
-        cameraRef.current!.updateProjectionMatrix();
-
-        const fov = cameraRef.current!.fov * (Math.PI / 180);
-        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-        cameraZ *= 2.5; // Zoom out a bit more
-
-        cameraRef.current!.position.set(center.x + maxDim, center.y + maxDim, center.z + cameraZ);
-        cameraRef.current!.lookAt(center);
-        controlsRef.current!.target.copy(center);
-        controlsRef.current!.update();
+        replaceGrid(sceneRef.current!, size, fileData.type === 'dxf');
+        fitCameraToModel(cameraRef.current!, controlsRef.current!, center, size, fileData.type);
 
       } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unable to render this file.';
         console.error('Error loading model:', err);
+        setViewerError(message);
       }
     };
 
@@ -189,15 +168,14 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
   };
 
   const handleReset = () => {
-    if (groupRef.current && cameraRef.current && controlsRef.current) {
-      const box = new THREE.Box3().setFromObject(groupRef.current);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const fov = cameraRef.current.fov * (Math.PI / 180);
-      let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
-      cameraRef.current.position.set(center.x, center.y, cameraZ);
-      controlsRef.current.target.copy(center);
+    if (fitTargetRef.current && cameraRef.current && controlsRef.current) {
+      fitCameraToModel(
+        cameraRef.current,
+        controlsRef.current,
+        fitTargetRef.current.center,
+        fitTargetRef.current.size,
+        fitTargetRef.current.type,
+      );
     }
   };
 
@@ -237,6 +215,86 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
           {fileData ? `Loaded: ${fileData.name}` : 'No File Loaded'}
         </div>
       </div>
+
+      {viewerError && (
+        <div className="absolute inset-x-6 top-20 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 backdrop-blur-md">
+          <AlertCircle size={18} className="mt-0.5 shrink-0" />
+          <span>{viewerError}</span>
+        </div>
+      )}
     </div>
   );
 };
+
+function replaceGrid(scene: THREE.Scene, size: THREE.Vector3, isPlanar: boolean) {
+  const previousGrid = scene.children.find((child) => child instanceof THREE.GridHelper);
+  if (previousGrid) {
+    scene.remove(previousGrid);
+  }
+
+  const maxDim = Math.max(size.x, size.y, size.z, 10);
+  const grid = new THREE.GridHelper(Math.max(50, maxDim * 4), 20, 0x3b82f6, 0x222222);
+  if (isPlanar) {
+    grid.rotation.x = Math.PI / 2;
+  }
+  scene.add(grid);
+}
+
+function fitCameraToModel(
+  camera: THREE.PerspectiveCamera,
+  controls: OrbitControls,
+  center: THREE.Vector3,
+  size: THREE.Vector3,
+  type: ViewerFileType,
+) {
+  const maxDim = Math.max(size.x, size.y, size.z, 1);
+  camera.near = Math.max(0.001, maxDim / 1000);
+  camera.far = Math.max(1000, maxDim * 100);
+  camera.updateProjectionMatrix();
+
+  const fov = THREE.MathUtils.degToRad(camera.fov);
+  const distance = Math.max(maxDim / (2 * Math.tan(fov / 2)), maxDim) * (type === 'dxf' ? 1.8 : 2.2);
+
+  if (type === 'dxf') {
+    camera.position.set(center.x, center.y, center.z + distance);
+  } else {
+    camera.position.set(center.x + distance, center.y + distance * 0.7, center.z + distance);
+  }
+
+  camera.lookAt(center);
+  controls.target.copy(center);
+  controls.update();
+}
+
+function clearCurrentModel(
+  scene: THREE.Scene,
+  groupRef: React.MutableRefObject<THREE.Group | null>,
+) {
+  if (!groupRef.current) {
+    return;
+  }
+
+  scene.remove(groupRef.current);
+  disposeObject(groupRef.current);
+  groupRef.current = null;
+}
+
+function disposeObject(object: THREE.Object3D) {
+  object.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (mesh.geometry) {
+      mesh.geometry.dispose();
+    }
+
+    if (!mesh.material) {
+      return;
+    }
+
+    if (Array.isArray(mesh.material)) {
+      mesh.material.forEach((material) => material.dispose());
+      return;
+    }
+
+    mesh.material.dispose();
+  });
+}
