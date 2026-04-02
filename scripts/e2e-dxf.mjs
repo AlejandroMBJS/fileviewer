@@ -5,7 +5,10 @@ const appUrl = process.env.APP_URL || 'http://127.0.0.1:3000';
 const chromePath = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 const filePath = process.env.TEST_FILE || '/home/iamx/Downloads/YHs7f-women-body-3d-wall-art.dxf';
 const screenshotPath = process.env.SCREENSHOT_PATH || '/tmp/fileviewer-dxf-e2e.png';
-const expectedFileName = path.basename(filePath);
+const uploadedFileName = path.basename(filePath);
+const expectedFileName = uploadedFileName.toLowerCase().endsWith('.dwg')
+  ? uploadedFileName.replace(/\.[^.]+$/i, '.dxf')
+  : uploadedFileName;
 
 const browser = await puppeteer.launch({
   executablePath: chromePath,

@@ -33,6 +33,22 @@ The app does not convert `DWG` in pure JavaScript. The backend executes the comm
 
 Default command:
 
-`dwg2dxf {input} {output}`
+`bash ./scripts/convert-dwg.sh {input} {output}`
 
 If that binary is not installed, uploads of `DWG` files will return a clear backend error instead of failing silently.
+
+The bundled script prefers `ODAFileConverter` and falls back to `dwg2dxf` if available.
+
+## Docker
+
+The repository now includes a `Dockerfile` that downloads and installs `ODA File Converter` during image build using:
+
+`https://www.opendesign.com/guestfiles/get?filename=ODAFileConverter_QT6_lnxX64_8.3dll_27.1.deb`
+
+Build:
+
+`docker build -t fileviewer .`
+
+Run:
+
+`docker run --rm -p 3000:3000 fileviewer`

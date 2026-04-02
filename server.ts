@@ -96,7 +96,7 @@ async function convertDwgBufferToDxf(originalName: string, fileBuffer: Buffer) {
 }
 
 async function runDwgConverter(inputPath: string, outputPath: string) {
-  const commandTemplate = process.env.DWG_CONVERTER_CMD?.trim() || 'dwg2dxf {input} {output}';
+  const commandTemplate = process.env.DWG_CONVERTER_CMD?.trim() || 'bash ./scripts/convert-dwg.sh {input} {output}';
   const command = commandTemplate
     .replaceAll('{input}', quoteShellPath(inputPath))
     .replaceAll('{output}', quoteShellPath(outputPath));

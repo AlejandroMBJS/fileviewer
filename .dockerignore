@@ -1,0 +1,7 @@
+node_modules
+dist
+.git
+.gitignore
+dwg-&-dxf-blueprint-viewer.zip
+*.log
+tmp

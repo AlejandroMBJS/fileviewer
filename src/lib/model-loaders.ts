@@ -50,7 +50,7 @@ export async function loadSTL(data: ArrayBuffer): Promise<THREE.Group> {
   const mesh = new THREE.Mesh(geometry, material);
   const group = new THREE.Group();
   group.add(mesh);
-  centerGroup(group);
+  normalize3DGroup(group);
   return group;
 }
 
@@ -61,7 +61,7 @@ export async function load3MF(data: ArrayBuffer): Promise<THREE.Group> {
   if (group.children.length === 0) {
     throw new Error('3MF file contains no geometry data.');
   }
-  centerGroup(group);
+  normalize3DGroup(group);
   return group;
 }
 
@@ -98,7 +98,7 @@ export async function loadSTEP(data: Uint8Array): Promise<THREE.Group> {
     group.add(mesh);
   });
 
-  centerGroup(group);
+  normalize3DGroup(group);
   return group;
 }
 
@@ -190,14 +190,16 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
-function centerGroup(group: THREE.Group) {
+function normalize3DGroup(group: THREE.Group) {
   const box = new THREE.Box3().setFromObject(group);
   if (box.isEmpty()) {
     return;
   }
 
   const center = box.getCenter(new THREE.Vector3());
-  group.position.sub(center);
+  group.position.x -= center.x;
+  group.position.z -= center.z;
+  group.position.y -= box.min.y;
 }
 
 function getMeshColor(color?: [number, number, number]) {

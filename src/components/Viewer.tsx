@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { renderDxf } from '../lib/dxf-renderer';
 import { loadSTL, load3MF, loadSTEP } from '../lib/model-loaders';
-import { AlertCircle, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertCircle, Grid3X3, Move3D, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import { FileData, ViewerFileType } from '../lib/cad-types';
 
 interface ViewerProps {
@@ -17,9 +17,13 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const groupRef = useRef<THREE.Group | null>(null);
+  const gridRef = useRef<THREE.GridHelper | null>(null);
+  const axesRef = useRef<THREE.AxesHelper | null>(null);
   const frameRef = useRef<number | null>(null);
-  const fitTargetRef = useRef<{ center: THREE.Vector3; size: THREE.Vector3; type: ViewerFileType } | null>(null);
+  const fitTargetRef = useRef<{ box: THREE.Box3; center: THREE.Vector3; size: THREE.Vector3; type: ViewerFileType } | null>(null);
   const [viewerError, setViewerError] = useState<string | null>(null);
+  const [showGrid, setShowGrid] = useState(false);
+  const [showAxes, setShowAxes] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -51,22 +55,21 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
     controls.enableDamping = true;
     controlsRef.current = controls;
 
-    // Grid helper
-    const grid = new THREE.GridHelper(2000, 100, 0x333333, 0x222222);
-    grid.rotation.x = Math.PI / 2;
-    scene.add(grid);
-
     // Lighting for 3D models
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
-    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+    const hemisphereLight = new THREE.HemisphereLight(0xdbeafe, 0x0f172a, 1.2);
     hemisphereLight.position.set(0, 20, 0);
     scene.add(hemisphereLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 5, 5);
-    scene.add(directionalLight);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+    keyLight.position.set(8, 12, 10);
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x93c5fd, 0.8);
+    rimLight.position.set(-10, 6, -8);
+    scene.add(rimLight);
 
     // Animation loop
     const animate = () => {
@@ -95,6 +98,7 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
       if (groupRef.current) {
         clearCurrentModel(scene, groupRef);
       }
+      clearSceneDecorations(scene, gridRef, axesRef);
       controls.dispose();
       renderer.dispose();
       if (containerRef.current) {
@@ -110,6 +114,7 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
       setViewerError(null);
       fitTargetRef.current = null;
       clearCurrentModel(sceneRef.current, groupRef);
+      clearSceneDecorations(sceneRef.current, gridRef, axesRef);
 
       try {
         let group: THREE.Group;
@@ -140,9 +145,9 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
         const box = new THREE.Box3().setFromObject(group);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        fitTargetRef.current = { center, size, type: fileData.type };
+        fitTargetRef.current = { box, center, size, type: fileData.type };
 
-        replaceGrid(sceneRef.current!, size, fileData.type === 'dxf');
+        updateSceneDecorations(sceneRef.current!, box, size, fileData.type, showGrid, showAxes, gridRef, axesRef);
         fitCameraToModel(cameraRef.current!, controlsRef.current!, center, size, fileData.type);
 
       } catch (err) {
@@ -153,7 +158,7 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
     };
 
     loadModel();
-  }, [fileData]);
+  }, [fileData, showGrid, showAxes]);
 
   const handleZoomIn = () => {
     if (cameraRef.current) {
@@ -182,6 +187,25 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
   return (
     <div className="relative w-full h-full bg-neutral-900 overflow-hidden rounded-xl border border-neutral-800 shadow-2xl">
       <div ref={containerRef} className="w-full h-full" />
+
+      <div className="absolute top-6 right-6 flex items-center gap-2 rounded-full border border-neutral-700 bg-neutral-900/80 px-2 py-2 text-xs text-neutral-300 backdrop-blur-md shadow-lg">
+        <button
+          onClick={() => setShowGrid((value) => !value)}
+          className={`flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors ${showGrid ? 'bg-blue-500/20 text-blue-200' : 'hover:bg-neutral-800'}`}
+          title="Toggle grid"
+        >
+          <Grid3X3 size={14} />
+          <span>Grid</span>
+        </button>
+        <button
+          onClick={() => setShowAxes((value) => !value)}
+          className={`flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors ${showAxes ? 'bg-blue-500/20 text-blue-200' : 'hover:bg-neutral-800'}`}
+          title="Toggle axes helper"
+        >
+          <Move3D size={14} />
+          <span>Axes</span>
+        </button>
+      </div>
       
       {/* Controls Overlay */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-neutral-800/80 backdrop-blur-md rounded-full border border-neutral-700 shadow-lg">
@@ -226,18 +250,77 @@ export const Viewer: React.FC<ViewerProps> = ({ fileData }) => {
   );
 };
 
-function replaceGrid(scene: THREE.Scene, size: THREE.Vector3, isPlanar: boolean) {
-  const previousGrid = scene.children.find((child) => child instanceof THREE.GridHelper);
-  if (previousGrid) {
-    scene.remove(previousGrid);
+function updateSceneDecorations(
+  scene: THREE.Scene,
+  box: THREE.Box3,
+  size: THREE.Vector3,
+  type: ViewerFileType,
+  showGrid: boolean,
+  showAxes: boolean,
+  gridRef: React.MutableRefObject<THREE.GridHelper | null>,
+  axesRef: React.MutableRefObject<THREE.AxesHelper | null>,
+) {
+  clearSceneDecorations(scene, gridRef, axesRef);
+
+  const maxDim = Math.max(size.x, size.y, size.z, 1);
+
+  if (showGrid) {
+    const grid = createGridHelper(box, size, type);
+    gridRef.current = grid;
+    scene.add(grid);
   }
 
-  const maxDim = Math.max(size.x, size.y, size.z, 10);
-  const grid = new THREE.GridHelper(Math.max(50, maxDim * 4), 20, 0x3b82f6, 0x222222);
-  if (isPlanar) {
-    grid.rotation.x = Math.PI / 2;
+  if (showAxes && type !== 'dxf') {
+    const axes = new THREE.AxesHelper(Math.max(maxDim * 0.2, 25));
+    const floorY = box.min.y - maxDim * 0.02;
+    axes.position.set(box.min.x - maxDim * 0.12, floorY, box.min.z - maxDim * 0.12);
+    axesRef.current = axes;
+    scene.add(axes);
   }
-  scene.add(grid);
+}
+
+function createGridHelper(box: THREE.Box3, size: THREE.Vector3, type: ViewerFileType) {
+  const span = Math.max(size.x, size.z, size.y, 20);
+  const divisions = clampDivisions(Math.round(span / 10));
+  const grid = new THREE.GridHelper(Math.max(span * 2, 40), divisions, 0x2a3441, 0x1b2530);
+  const material = grid.material as THREE.Material | THREE.Material[];
+  const materials = Array.isArray(material) ? material : [material];
+  materials.forEach((entry) => {
+    entry.transparent = true;
+    entry.opacity = type === 'dxf' ? 0.18 : 0.26;
+    entry.depthWrite = false;
+  });
+
+  if (type === 'dxf') {
+    grid.rotation.x = Math.PI / 2;
+    grid.position.z = box.min.z - Math.max(size.x, size.y, 1) * 0.01;
+  } else {
+    grid.position.y = box.min.y - Math.max(size.y, 1) * 0.02;
+  }
+
+  return grid;
+}
+
+function clampDivisions(value: number) {
+  return Math.max(8, Math.min(40, value));
+}
+
+function clearSceneDecorations(
+  scene: THREE.Scene,
+  gridRef: React.MutableRefObject<THREE.GridHelper | null>,
+  axesRef: React.MutableRefObject<THREE.AxesHelper | null>,
+) {
+  if (gridRef.current) {
+    scene.remove(gridRef.current);
+    disposeHelper(gridRef.current);
+    gridRef.current = null;
+  }
+
+  if (axesRef.current) {
+    scene.remove(axesRef.current);
+    disposeHelper(axesRef.current);
+    axesRef.current = null;
+  }
 }
 
 function fitCameraToModel(
@@ -296,5 +379,25 @@ function disposeObject(object: THREE.Object3D) {
     }
 
     mesh.material.dispose();
+  });
+}
+
+function disposeHelper(object: THREE.Object3D) {
+  object.traverse((child) => {
+    const line = child as THREE.LineSegments;
+    if (line.geometry) {
+      line.geometry.dispose();
+    }
+
+    if (!line.material) {
+      return;
+    }
+
+    if (Array.isArray(line.material)) {
+      line.material.forEach((material) => material.dispose());
+      return;
+    }
+
+    line.material.dispose();
   });
 }
