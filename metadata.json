@@ -1,0 +1,5 @@
+{
+  "name": "DWG & DXF Blueprint Viewer",
+  "description": "A high-performance online viewer for 2D and 3D architectural blueprints (DXF/DWG).",
+  "requestFramePermissions": []
+}
